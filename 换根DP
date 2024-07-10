@@ -1,0 +1,293 @@
+有一类题，给出一棵无根树，需要求出以每个节点为根的时候的一些值，如果按照一般思路，对每个点进行搜索，时间复杂度一般在 $O(n^2)$,一定会超时，这时就需要用到：
+## 换根DP
+换根DP可以将此类题目复杂度降到 $O(n)$，在根节点切换时，利用一些已经知道的数据在 $O(1)$ 的复杂度内就能得到另一个根的答案。
+### 具体操作
+
+
+------------
+1、指定某个结点为根，注意这个根有时**不能随便定为1号点**，后边有例题会详细说明。
+
+2、以此点为根，一遍 dfs 进行树形DP，得到此点为根的答案。同时预处理出每个子树大小 $siz[]$ 和每个点到根的距离 $dis[]$ 等信息。
+
+3、再来一遍 dfs，进行换根，求得所有点的答案。所以换根DP也叫**二次扫描**。
+
+举一个简单的例子，给一棵无根树，找以$x$为根的树，使所有点的深度和最大。
+
+![](https://cdn.luogu.com.cn/upload/image_hosting/wpue44nt.png)
+
+假设我们现在已经知道了 1 为根的答案，要求 2 为根的答案。对于 1 左边的点 2,4,5，到新根的距离都要减 1。对于 1 右边的点 3,6，到新根的距离都要加 1。于是有了转移方程：
+$$
+f_v=f_u-siz_v+(siz_1-siz_v)
+$$
+其中$f_v$表示以$v$为根时的答案，$u$ 是 $v$ 的父亲，$siz$ 表示子树大小。最后求一下 $f$ 数组的最大值即可。
+## 例题
+### [P3478STA-Station](https://www.luogu.com.cn/problem/P3478)
+此题就是上面举的例子，直接换根DP。代码如下：
+```cpp
+int n,x,y,f[N],siz[N],dp[N];
+vector<int> ve[N];
+void dfs(int u,int fa){
+	f[u]=f[fa]+1;
+	siz[u]=1;
+	for(int i=0;i<ve[u].size();i++){
+		int v=ve[u][i];
+		if(v==fa){
+			continue;
+		}
+		dfs(v,u);
+		siz[u]+=siz[v];
+	}
+}
+void dfs2(int u,int fa){
+	if(fa!=0){
+		dp[u]=dp[fa]+(n-siz[u])-siz[u];
+	}
+	for(int i=0;i<ve[u].size();i++){
+		int v=ve[u][i];
+		if(v==fa){
+			continue;
+		}
+		dfs2(v,u);
+	}
+}
+signed main(){
+	read(n);
+	for(int i=1;i<=n-1;i++){
+		read(x,y);
+		ve[x].push_back(y);
+		ve[y].push_back(x);
+	}
+	dfs(1,0);
+	for(int i=1;i<=n;i++){
+		dp[1]+=f[i];
+	}
+	dfs2(1,0);
+	int maxx=0,ans=0;
+	for(int i=1;i<=n;i++){
+		if(dp[i]>maxx){
+			maxx=dp[i];
+			ans=i;
+		}
+	}
+	cout<<ans<<endl;
+    return 0;
+}
+`````
+
+
+------------
+### [P2986](https://www.luogu.com.cn/problem/P2986)
+在上一题的基础上稍作修改即可，$siz$ 统计每个节点的子树有多少奶牛，$sum$ 是总奶牛数，$len$ 是从 $u$ 到 $v$ 的路径长度，于是有：
+$$
+f_v=f_u-siz_v*len+(sum-siz_v)*len
+$$
+代码如下：
+```cpp
+int n,a,b,t,c[N],f[N],siz[N],dp[N],head[N],ver[N],w[N],Next[N],tot=-1,sum;
+vector<int> ve[N];
+void add(int x,int y,int z){
+	ver[++tot]=y;
+	Next[tot]=head[x];
+	w[tot]=z;
+	head[x]=tot;
+}
+void dfs(int u,int fa,int len){
+	f[u]=f[fa]+len;
+	dp[1]+=f[u]*c[u];
+	siz[u]=c[u];
+	for(int i=head[u];i!=-1;i=Next[i]){
+		int v=ver[i];
+		if(v==fa){
+			continue;
+		}
+		dfs(v,u,w[i]);
+		siz[u]+=siz[v];
+	}
+}
+void dfs2(int u,int fa,int len){
+	if(fa!=0){
+		dp[u]=dp[fa]+(sum-siz[u])*len-siz[u]*len;
+	}
+	for(int i=head[u];i!=-1;i=Next[i]){
+		int v=ver[i];
+		if(v==fa){
+			continue;
+		}
+		dfs2(v,u,w[i]);
+	}
+}
+signed main(){
+	memset(head,-1,sizeof head);
+	read(n);
+	for(int i=1;i<=n;i++){
+		read(c[i]);
+		sum=sum+c[i];
+	}
+	for(int i=1;i<=n-1;i++){
+		read(a,b,t);
+		add(a,b,t);
+		add(b,a,t);
+	}
+	dfs(1,0,0);
+	dfs2(1,0,0);
+	int minn=inf,ans=0;
+	for(int i=1;i<=n;i++){
+		minn=min(minn,dp[i]);
+	}
+	cout<<minn<<endl;
+    return 0;
+}
+`````
+------------
+### Accumulation Degree 
+这道题洛谷上好像没有，但确实是一道换根DP好题。
+
+树木是自然景观中的重要组成部分，因为它们可以防止侵蚀，并在它们的叶片上方和下方提供一个特定的庇护生态系统。树木还被发现在产生氧气、减少大气中的二氧化碳以及调节地面温度方面起着重要作用。它们在园林和农业中也是重要的元素，既因为它们的美学吸引力，也因为它们的果园作物（比如苹果）。树木木材是一种常见的建筑材料。
+
+树木还在世界许多神话中扮演着亲密的角色。许多学者对树木的特殊属性很感兴趣，比如树的中心、树的计数、树的着色。A(x)就是这样一种属性。
+
+A(x)（节点 x 的累积度）定义如下：
+
+    1、树的每条边都有一个正的容量。
+    2、树中度为一的节点被称为终端节点。
+    3、每条边的流量不能超过其容量。
+    4、A(x) 是节点 x 能够流向其他终端节点的最大流量。
+
+由于定义可能难以理解，下面展示了一个例子：
+
+![](https://vj.csgrandeur.cn/68817933e8e32f44410dadbf657a6ea2?v=1705826427)
+```cpp
+A(1)=11+5+8=24
+Details:
+	1->2	11
+  	1->4->3	5
+	1->4->5	8(因为1->4的容量为13)
+A(2)=5+6=11
+Details:
+	2->1->4->3	5
+	2->1->4->5	6
+A(3)=5
+Details: 	
+	3->4->5	5
+A(4)=11+5+10=26
+Details:	
+	4->1->2	11
+	4->3	5
+	4->5	10
+A(5)=10
+Details:	
+	5->4->1->2	10
+``````
+树的累积度是其节点中的最大累积度。你的任务是找出给定树的累积度。
+
+输入的第一行是一个整数 T，表示测试用例的数量。每个测试用例的第一行是一个正整数 n。接下来的 n - 1 行中，每行包含三个用空格分隔的整数 x、y、z，表示节点 x 和节点 y 之间有一条边，边的容量为 z。节点从1到 n 编号。
+所有元素都是不超过200000的非负整数。你可以假设测试数据都是树度量。
+
+对于每个测试用例，将结果输出在一行上。
+
+样例就是上面的例子。
+#### 解题思路
+先考虑当我们确定一个节点为根时，它的累积度怎么求。设节点$u$的累积度为$f_u$，$v$是$u$的儿子。若$v$是一个叶子结点，那么$u$流给它的一定是$u,v$之间的边长；若它不是叶子结点，那么$u$流给它的应是$u,v$之间的边长和$f_v$的较小值。于是有：
+$$
+f_u= \sum \begin{cases}
+	min(f_v,edge_{u,v}) & v不是叶子\\
+    edge_{u,v} & v是叶子
+\end{cases}
+$$
+可以用树形DP求得，叶子结点的$f$应赋为0.
+
+下面进行换根DP。设$dp_u$是以$u$为根时的最大流量。显然对于设定的根root，$dp_{root}=f_{root}$。当我们已经知道$dp_u$时对于它的儿子$v$,答案分为两部分，沿着自己子树流的部分就是$f_v$。另一部分是向上流到父亲那里的。从$v$流到$u$的流量为$min(f_v,edge_{u,v})$，从$v$流向$u$以外的部分为$dp_u-min(f_v,edge_{u,v})$。把这个值再和$edge_{u,v}$取最小值即可
+$$
+dp_v=min(edge_{u,v},dp_u-min(edge_{u,v},f_v))+f_v
+$$
+#### 注意事项
+此题坑多，应注意以下几点：
+- 多组数据，注意输入输出以及清空
+- 需要特判n=1和n=2的情况
+- 不能直接从1号节点开始搜索，要找一个不是叶子结点的，因为如果1号是叶子会出现预处理错误
+
+下面是AC代码，我用了一个vector判断是否为叶子结点
+```cpp
+int t,n,x,y,z,f[N],siz[N],dp[N],head[N*2],ver[N*2],w[N*2],Next[N*2],tot=-1;
+vector<int> ve[N];
+void add(int x,int y,int z){
+	ver[++tot]=y;
+	Next[tot]=head[x];
+	w[tot]=z;
+	head[x]=tot;
+}
+void dfs(int u,int fa){
+	siz[u]=1;
+	//f[u]=inf;
+	for(int i=head[u];i!=-1;i=Next[i]){
+		int v=ver[i];
+		if(v==fa){
+			continue;
+		}
+		if(ve[v].size()==1&&ve[v][0]==u){
+			//cout<<v<<endl;
+			f[u]+=w[i];
+		}
+		dfs(v,u);
+		siz[u]+=siz[v];
+		f[u]+=min(f[v],w[i]); 
+	}
+	//f[u]+=siz[u];
+}
+void dfs2(int u,int fa,int len){
+	if(fa!=0){
+		dp[u]=min(len,dp[fa]-min(len,f[u]))+f[u];
+	}
+	for(int i=head[u];i!=-1;i=Next[i]){
+		int v=ver[i];
+		if(v==fa){
+			continue;
+		}
+		dfs2(v,u,w[i]);
+	}
+}
+signed main(){
+	cin>>t;
+	while(t--){
+		memset(head,-1,sizeof head);
+		tot=-1;
+		cin>>n;
+		for(int i=1;i<=n;i++){
+			ve[i].clear();
+		}
+		for(int i=1;i<=n-1;i++){
+			cin>>x>>y>>z;
+			add(x,y,z);
+			add(y,x,z);
+			ve[x].push_back(y);
+			ve[y].push_back(x);
+		}
+		if(n==1){
+			cout<<0<<endl;
+			continue;
+		}
+		if(n==2){
+			cout<<z<<endl;
+			continue;
+		}
+		memset(f,0,sizeof f);
+		int root=0;
+		for(int i=1;i<=n;i++){
+			if(ve[i].size()>1){
+				root=i;
+				break;
+			}
+		}
+		dfs(root,0);
+		dp[root]=f[root];
+		dfs2(root,0,0);
+		int maxx=0;
+		for(int i=1;i<=n;i++){
+			//cout<<dp[i]<<endl;
+			maxx=max(maxx,dp[i]);
+		}
+		cout<<maxx<<endl;
+	}
+    return 0;
+}
+`````
